@@ -36,7 +36,7 @@ app.post('/webhook', (req, res) => {
 
   // Parse the request body from the POST
   let body = req.body;
-  console.log('success');
+  //console.log('success');
   // Check the webhook event is from a Page subscription
   if (body.object === 'page') {
 
@@ -44,17 +44,21 @@ app.post('/webhook', (req, res) => {
 
       // Gets the body of the webhook event
       let webhook_event = entry.messaging[0];
-      console.log(webhook_event);
+      //console.log(webhook_event);
 
 
       // Get the sender PSID
       let sender_psid = webhook_event.sender.id;
-      console.log('Sender ID: ' + sender_psid);
+      //console.log('Sender ID: ' + sender_psid);
 
       // Check if the event is a message or postback and
       // pass the event to the appropriate handler function
       if (webhook_event.message) {
-        handleMessage(sender_psid, webhook_event.message);        
+        let message = webhook_event.message;
+        if (message.quick_reply){
+          console.log(message.quick_reply.payload);
+        }else handleMessage(sender_psid, webhook_event.message);  
+
       } else if (webhook_event.postback) {
         
         handlePostback(sender_psid, webhook_event.postback);
@@ -81,7 +85,7 @@ app.get('/webhook', (req, res) => {
   let mode = req.query['hub.mode'];
   let token = req.query['hub.verify_token'];
   let challenge = req.query['hub.challenge'];
-  console.log('success');
+  //console.log('success');
   // Check if a token and mode were sent
   if (mode && token) {
   
@@ -89,7 +93,7 @@ app.get('/webhook', (req, res) => {
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
       
       // Respond with 200 OK and challenge token from the request
-      console.log('WEBHOOK_VERIFIED');
+      //console.log('WEBHOOK_VERIFIED');
       res.status(200).send(challenge);
     
     } else {
@@ -181,4 +185,39 @@ function callSendAPI(sender_psid, response) {
       console.error("Unable to send message:" + err);
     }
   }); 
+
+  request_body = {
+    "recipient":{
+      "id": sender_psid
+    },
+    "messaging_type": "RESPONSE",
+    "message":{
+      "text": "Pick a color:",
+      "quick_replies":[
+        {
+          "content_type":"text",
+          "title":"Red",
+          "payload":"red",
+          "image_url":"http://example.com/img/red.png"
+        },{
+          "content_type":"text",
+          "title":"Green",
+          "payload":"green",
+          "image_url":"http://example.com/img/green.png"
+        }
+      ]
+    }
+  }
+  request({
+    "uri": "https://graph.facebook.com/v2.6/me/messages",
+    "qs": { "access_token": PAGE_ACCESS_TOKEN },
+    "method": "POST",
+    "json": request_body
+  }, (err, res, body) => {
+    if (!err) {
+      console.log('message sent!')
+    } else {
+      console.error("Unable to send message:" + err);
+    }
+  });
 }
